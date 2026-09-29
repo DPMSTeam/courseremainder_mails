@@ -105,11 +105,11 @@ global $DB, $USER;
 $transaction = $DB->start_delegated_transaction();
 try {
     foreach ($ids as $id) {
-        if ($record = $DB->get_record('local_courseremainder_log', ['id' => $id])) {
+        if ($record = $DB->get_record('local_courseremainder_mails_log', ['id' => $id])) {
             $record->deleted = 1;
             $record->modifierid = $USER->id;
             $record->timemodified = time();
-            $DB->update_record('local_courseremainder_log', $record);
+            $DB->update_record('local_courseremainder_mails_log', $record);
         }
     }
     $transaction->allow_commit();
