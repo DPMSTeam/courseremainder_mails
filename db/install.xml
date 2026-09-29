@@ -7,8 +7,8 @@
 
     <TABLES>
 
-        <TABLE NAME="local_courseremainder_log"
-               COMMENT="Stores course reminder email logs">
+   <TABLE NAME="local_courseremainder_mails_log"
+           COMMENT="Stores course reminder email logs">
 
             <FIELDS>
 
