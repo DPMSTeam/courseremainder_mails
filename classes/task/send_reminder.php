@@ -844,7 +844,7 @@ class send_reminder extends \core\task\scheduled_task {
 
             "SELECT 1
 
-               FROM {local_courseremainder_log}
+               FROM {local_courseremainder_mails_log}
 
               WHERE userid = :userid
 
@@ -1034,7 +1034,7 @@ class send_reminder extends \core\task\scheduled_task {
         ];
 
         $DB->insert_record(
-            'local_courseremainder_log',
+            'local_courseremainder_mails_log',
             $log,
         );
 
