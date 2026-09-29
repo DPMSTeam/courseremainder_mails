@@ -32,7 +32,7 @@ $userid = required_param('userid', PARAM_INT);
 $courseid = required_param('courseid', PARAM_INT);
 
 $records = $DB->get_records(
-    'local_courseremainder_log',
+    'local_courseremainder_mails_log',
     [
         'userid' => $userid,
         'courseid' => $courseid,
