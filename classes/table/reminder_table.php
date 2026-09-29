@@ -124,7 +124,7 @@ class reminder_table extends \table_sql {
         global $DB;
 
         $count = $DB->count_records(
-            'local_courseremainder_log',
+            'local_courseremainder_mails_log',
             [
                 'userid' => $row->userid,
                 'courseid' => $row->courseid,
@@ -188,10 +188,10 @@ class reminder_table extends \table_sql {
         ";
 
         $from = "
-            {local_courseremainder_log} l
+            {local_courseremainder_mails_log} l
             INNER JOIN (
                 SELECT userid, courseid, MAX(timesent) AS latestsent
-                FROM {local_courseremainder_log}
+                FROM {local_courseremainder_mails_log}
                 WHERE deleted = 0
                 GROUP BY userid, courseid
             ) latest
