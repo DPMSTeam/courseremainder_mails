@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<XMLDB PATH="local/courseremainder_mails/db"
+<XMLDB PATH="local/coursereminder_mails/db"
        VERSION="2026070700"
-       COMMENT="XMLDB file for local_courseremainder_mails"
+       COMMENT="XMLDB file for local_coursereminder_mails"
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
        xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd">
 
     <TABLES>
 
-   <TABLE NAME="local_courseremainder_mails_log"
+   <TABLE NAME="local_coursereminder_mails_log"
            COMMENT="Stores course reminder email logs">
 
             <FIELDS>
@@ -28,7 +28,7 @@
                        TYPE="char"
                        LENGTH="255"
                        NOTNULL="true"
-                       DEFAULT=""/>
+                       />
 
                 <FIELD NAME="courseid"
                        TYPE="int"
@@ -52,7 +52,7 @@
                        TYPE="char"
                        LENGTH="50"
                        NOTNULL="true"
-                       DEFAULT=""/>
+                       />
 
                 <FIELD NAME="status"
                        TYPE="int"

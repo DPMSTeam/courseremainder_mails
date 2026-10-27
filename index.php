@@ -15,176 +15,110 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Library functions for courseremainder mails
+ * Reminder reports page.
  *
- * @package    local_courseremainder_mails
+ * @package    local_coursereminder_mails
  * @copyright  2026 IEX
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 require('../../config.php');
-
-require_once($CFG->dirroot . '/local/courseremainder_mails/classes/form/report_filter.php');
-require_once($CFG->dirroot . '/local/courseremainder_mails/classes/table/reminder_table.php');
 require_login();
-$context = context_system::instance();
 
-if (!is_siteadmin()) {
-    throw new required_capability_exception(
-        $context,
-        'moodle/site:config',
-        'nopermissions',
-        ''
-    );
-}
+$context = context_system::instance();
+require_capability('local/coursereminder_mails:view', $context);
+
 $PAGE->set_context($context);
-$PAGE->set_url(new moodle_url('/local/courseremainder_mails/index.php'));
-$PAGE->set_title(get_string('pluginname', 'local_courseremainder_mails'));
-$PAGE->requires->js(new moodle_url('/local/courseremainder_mails/js/modelpopup.js'));
-$PAGE->requires->css(new moodle_url('/local/courseremainder_mails/styles.css'));
-$PAGE->set_heading(get_string('pluginname', 'local_courseremainder_mails'));
+$PAGE->set_url(new moodle_url('/local/coursereminder_mails/index.php'));
+$PAGE->set_title(get_string('pluginname', 'local_coursereminder_mails'));
+$PAGE->set_heading(get_string('pluginname', 'local_coursereminder_mails'));
+$PAGE->requires->js_call_amd('local_coursereminder_mails/reminder_history', 'init');
+
 echo $OUTPUT->header();
-$form = new \local_courseremainder_mails\form\report_filter();
-/*
-|--------------------------------------------------------------------------
-| Reset
-|--------------------------------------------------------------------------
-*/
+
+$form = new \local_coursereminder_mails\form\report_filter();
+
 if ($form->is_cancelled()) {
-    redirect(new moodle_url('/local/courseremainder_mails/index.php'));
+    redirect(new moodle_url('/local/coursereminder_mails/index.php'));
 }
-/*
-|--------------------------------------------------------------------------
-| Read filters
-|--------------------------------------------------------------------------
-*/
-$filters = [];
-// Course.
-$filters['courseid'] = optional_param_array('courseid', 0, PARAM_INT);
-// User.
-$filters['userid'] = optional_param_array('userid', 0, PARAM_INT);
-// Status.
-$status = optional_param('status', '', PARAM_RAW);
-if ($status === '') {
-    $filters['status'] = '';
-} else {
-    $filters['status'] = (int)$status;
-}
-// Dates.
-$filters['fromdate'] = optional_param_array('fromdate', 0, PARAM_INT);
-$filters['todate'] = optional_param_array('todate', 0, PARAM_INT);
-/*
-|--------------------------------------------------------------------------
-| Form submitted
-|--------------------------------------------------------------------------
-*/
+
+// Read filters.
+$filters = [
+    'courseid' => 0,
+    'userid'   => 0,
+    'status'   => '',
+    'fromdate' => 0,
+    'todate'   => 0,
+];
+
 if ($data = $form->get_data()) {
     $filters['courseid'] = (int)$data->courseid;
     $filters['userid']   = (int)$data->userid;
-    if ($data->status === '') {
-        $filters['status'] = '';
-    } else {
-        $filters['status'] = (int)$data->status;
-    }
+    $filters['status']   = ($data->status === '') ? '' : (int)$data->status;
     $filters['fromdate'] = !empty($data->fromdate) ? $data->fromdate : 0;
     $filters['todate']   = !empty($data->todate) ? $data->todate : 0;
 }
-/*
-|--------------------------------------------------------------------------
-| Preserve values in form
-|--------------------------------------------------------------------------
-*/
+
 $form->set_data($filters);
 $form->display();
-/*
-|--------------------------------------------------------------------------
-| Table
-|--------------------------------------------------------------------------
-*/
-$table = new \local_courseremainder_mails\table\reminder_table(
-    'courseremainderreport'
-);
-/*
-|--------------------------------------------------------------------------
-| Base URL
-|--------------------------------------------------------------------------
-*/
-$params = [];
-if (!empty($filters['courseid'])) {
-    $params['courseid'] = $filters['courseid'];
-}
-if (!empty($filters['userid'])) {
-    $params['userid'] = $filters['userid'];
-}
-if ($filters['status'] !== '') {
-    $params['status'] = $filters['status'];
-}
-if (!empty($filters['fromdate'])) {
-    $params['fromdate'] = $filters['fromdate'];
-}
-if (!empty($filters['todate'])) {
-    $params['todate'] = $filters['todate'];
-}
-$table->define_baseurl(
-    new moodle_url(
-        '/local/courseremainder_mails/index.php',
-        $params
-    )
-);
-/*
-|--------------------------------------------------------------------------
-| SQL
-|--------------------------------------------------------------------------
-*/
+
+$table = new \local_coursereminder_mails\table\reminder_table('coursereminderreport');
+
+$params = array_filter([
+    'courseid' => $filters['courseid'],
+    'userid'   => $filters['userid'],
+    'status'   => ($filters['status'] === '') ? null : $filters['status'],
+    'fromdate' => $filters['fromdate'],
+    'todate'   => $filters['todate'],
+], function ($v) {
+    return $v !== 0 && $v !== null && $v !== '';
+});
+
+$table->define_baseurl(new moodle_url('/local/coursereminder_mails/index.php', $params));
 $table->setup_table($filters);
-/*
-|--------------------------------------------------------------------------
-| Delete form
-|--------------------------------------------------------------------------
-*/
+
 echo html_writer::start_tag('form', [
     'method' => 'post',
-    'action' => new moodle_url('/local/courseremainder_mails/delete.php'),
+    'action' => new moodle_url('/local/coursereminder_mails/delete.php'),
 ]);
 echo html_writer::empty_tag('input', [
-    'type' => 'hidden',
-    'name' => 'sesskey',
+    'type'  => 'hidden',
+    'name'  => 'sesskey',
     'value' => sesskey(),
 ]);
+
 $table->out(10, true);
+
 echo html_writer::start_div('mt-3');
 echo html_writer::empty_tag('input', [
-    'type' => 'submit',
+    'type'  => 'submit',
     'class' => 'btn btn-danger',
-    'name' => 'delete',
+    'name'  => 'delete',
     'value' => get_string('delete'),
 ]);
-echo '
-<div class="modal fade" id="course-modal">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-
-  <div class="modal-header">
-    <h5 id="course-modal-label">Reminder Details</h5>
-
-    <button
-        type="button"
-        class="close reminder-modal-close"
-        data-dismiss="modal"
-        aria-label="Close"
-    >
-        <span aria-hidden="true">&times;</span>
-    </button>
-</div>
-
-            <div class="modal-body" id="course-modal-body"></div>
-
-        </div>
-    </div>
-</div>';
 echo html_writer::end_div();
 echo html_writer::end_tag('form');
+
+// Modal container for reminder details.
+echo html_writer::start_div('modal fade', ['id' => 'course-modal']);
+echo html_writer::start_div('modal-dialog modal-lg');
+echo html_writer::start_div('modal-content');
+echo html_writer::start_div('modal-header');
+echo html_writer::tag('h5', '', ['id' => 'course-modal-label']);
+echo html_writer::tag(
+    'button',
+    html_writer::tag('span', '&times;', ['aria-hidden' => 'true']),
+    [
+        'type'         => 'button',
+        'class'        => 'close reminder-modal-close',
+        'data-dismiss' => 'modal',
+        'aria-label'   => get_string('close', 'core'),
+    ]
+);
+echo html_writer::end_div();
+echo html_writer::tag('div', '', ['class' => 'modal-body', 'id' => 'course-modal-body']);
+echo html_writer::end_div();
+echo html_writer::end_div();
+echo html_writer::end_div();
+
 echo $OUTPUT->footer();
-
-
-

@@ -4,6 +4,7 @@
     top: -29px;
     left: 62px;
 }
+
 .courseremainder-table {
     border-collapse: separate;
     border-spacing: 0;
@@ -11,11 +12,11 @@
     background: #ffffff;
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .courseremainder-table th {
-    background: #6a737;
+    background: #6a737d;
     color: #0f6cbf;
     padding: 12px;
     text-align: left;
@@ -32,9 +33,7 @@
     background-color: #f5f9ff;
 }
 
-
 /* Count link */
-
 .view-reminder-details {
     display: inline-block;
     min-width: 35px;
@@ -53,28 +52,12 @@
     text-decoration: none;
 }
 
-
 /* Modal */
-
 #course-modal .modal-content {
     border-radius: 12px;
     border: none;
-    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
 }
-
-
-#course-modal .modal-header {
-    background: #0f6cbf;
-    color: #fff;
-    border-radius: 12px 12px 0 0;
-}
-
-
-#course-modal .modal-title {
-    font-size: 20px;
-    font-weight: 600;
-}
-
 
 #course-modal .modal-header {
     position: relative;
@@ -83,30 +66,27 @@
     border-radius: 12px 12px 0 0;
 }
 
+#course-modal .modal-title {
+    font-size: 20px;
+    font-weight: 600;
+}
+
 #course-modal .close {
     position: absolute;
     top: 10px;
     right: 15px;
-
     width: 36px;
     height: 36px;
-
     padding: 0;
     margin: 0;
-
     border: 0;
     background: transparent;
-
     color: #fff !important;
     opacity: 1;
-
     font-size: 28px;
     line-height: 36px;
-
     text-align: center;
-
     cursor: pointer;
-
     z-index: 10;
 }
 
@@ -120,16 +100,13 @@
     box-shadow: none;
 }
 
-
 #course-modal .modal-body {
     padding: 20px;
     max-height: 500px;
     overflow-y: auto;
 }
 
-
 /* Popup details table */
-
 .reminder-detail-table {
     width: 100%;
     border-collapse: collapse;
@@ -146,21 +123,12 @@
     border-bottom: 1px solid #eee;
 }
 
-
 .reminder-status-success {
     color: #198754;
     font-weight: bold;
 }
 
-
 .reminder-status-failed {
     color: #dc3545;
     font-weight: bold;
-}
-
-
-/* Close button */
-
-.course-modal-footer-local-empdashboard .btn {
-    min-width: 100px;
 }

@@ -15,20 +15,17 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Library functions for courseremainder mails
+ * Library functions for coursereminder mails
  *
- * @package    local_courseremainder_mails
+ * @package    local_coursereminder_mails
  * @copyright  2026 IEX
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'local_courseremainder_mails';
+$plugin->component = 'local_coursereminder_mails';
 $plugin->version   = 2026070703;
 $plugin->requires  = 2023100900; // Moodle 4.3.
 $plugin->maturity  = MATURITY_STABLE;
 $plugin->release   = '1.0';
-
-
-

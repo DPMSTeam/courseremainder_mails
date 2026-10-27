@@ -15,9 +15,9 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Language strings for courseremainder mails.
+ * Scheduled task definitions.
  *
- * @package    local_courseremainder_mails
+ * @package    local_coursereminder_mails
  * @copyright  2026 IEX
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -26,13 +26,12 @@ defined('MOODLE_INTERNAL') || die();
 
 $tasks = [
     [
-        'classname' => 'local_courseremainder_mails\task\send_reminder',
-        'blocking' => 0,
-        'minute' => '0',
-        'hour' => '9',
-        'day' => '*',
+        'classname' => 'local_coursereminder_mails\task\send_reminder',
+        'blocking'  => 0,
+        'minute'    => '0',
+        'hour'      => '9',
+        'day'       => '*',
         'dayofweek' => '*',
-        'month' => '*',
+        'month'     => '*',
     ],
 ];
-

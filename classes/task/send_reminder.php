@@ -15,1044 +15,302 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Library functions for courseremainder mails
+ * Scheduled task for sending course reminder emails.
  *
- * @package    local_courseremainder_mails
+ * @package    local_coursereminder_mails
  * @copyright  2026 IEX
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-namespace local_courseremainder_mails\task;
+namespace local_coursereminder_mails\task;
+
 /**
- * Scheduled task for sending course reminder emails.
+ * Send reminder task.
  */
 class send_reminder extends \core\task\scheduled_task {
 
     /**
      * Get task name.
+     *
+     * @return string
      */
     public function get_name() {
-
-        return get_string(
-            'pluginname',
-            'local_courseremainder_mails'
-        );
+        return get_string('pluginname', 'local_coursereminder_mails');
     }
 
     /**
      * Execute scheduled task.
      */
     public function execute() {
-
         global $DB;
 
-        /*
-        |--------------------------------------------------------------------------
-        | Check whether plugin is enabled.
-        |--------------------------------------------------------------------------
-        */
-
-        if (!get_config(
-            'local_courseremainder_mails',
-            'enabled'
-        )) {
-
-            mtrace('Course reminder disabled.');
-
+        if (!get_config('local_coursereminder_mails', 'enabled')) {
+            mtrace(get_string('taskdisabled', 'local_coursereminder_mails'));
             return;
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Get student role.
-        |--------------------------------------------------------------------------
-        */
-
-        $studentroleid = $DB->get_field(
-            'role',
-            'id',
-            [
-                'shortname' => 'student',
-            ]
-        );
-
+        $studentroleid = $DB->get_field('role', 'id', ['shortname' => 'student']);
         if (!$studentroleid) {
-
-            mtrace('Student role not found.');
-
+            mtrace(get_string('tasknorole', 'local_coursereminder_mails'));
             return;
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Support user.
-        |--------------------------------------------------------------------------
-        */
 
         $supportuser = \core_user::get_support_user();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Reminder days.
-        |--------------------------------------------------------------------------
-        */
-
         $reminders = [
-
-            'first' => (int)get_config(
-                'local_courseremainder_mails',
-                'firstremainderdays'
-            ),
-
-            'second' => (int)get_config(
-                'local_courseremainder_mails',
-                'secondremainderdays'
-            ),
-
-            'custom' => (int)get_config(
-                'local_courseremainder_mails',
-                'customremainderdays'
-            ),
-
+            'first'  => (int)get_config('local_coursereminder_mails', 'firstreminderdays'),
+            'second' => (int)get_config('local_coursereminder_mails', 'secondreminderdays'),
+            'custom' => (int)get_config('local_coursereminder_mails', 'customreminderdays'),
         ];
 
-        /*
-        |--------------------------------------------------------------------------
-        | Reminder Date Based On
-        |--------------------------------------------------------------------------
-        |
-        | courseenddate:
-        |     Uses course.enddate.
-        |
-        | enrolmentenddate:
-        |     Uses user_enrolments.timeend.
-        |
-        | Default:
-        |     courseenddate.
-        |
-        |--------------------------------------------------------------------------
-        */
-
-        $reminderdatebasedon = get_config(
-            'local_courseremainder_mails',
-            'reminderdatebasedon',
-        );
-
-        if (empty($reminderdatebasedon)) {
-
+        $reminderdatebasedon = get_config('local_coursereminder_mails', 'reminderdatebasedon');
+        if (empty($reminderdatebasedon) ||
+            !in_array($reminderdatebasedon, ['courseenddate', 'enrolmentenddate'], true)) {
             $reminderdatebasedon = 'courseenddate';
         }
 
-        if (!in_array(
-            $reminderdatebasedon,
-            [
-                'courseenddate',
-                'enrolmentenddate',
-            ],
-            true
-        )) {
-
-            $reminderdatebasedon = 'courseenddate';
-        }
-
-        if ($reminderdatebasedon === 'courseenddate') {
-
-            mtrace(
-                'Reminder date source: Course End Date'
-            );
-
-        } else {
-
-            mtrace(
-                'Reminder date source: User Enrolment End Date'
-            );
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Get Selected Categories / Courses
-        |--------------------------------------------------------------------------
-        |
-        | category_XX = entire category
-        | course_XX   = individual course
-        |
-        |--------------------------------------------------------------------------
-        */
-
-        $selection = get_config(
-            'local_courseremainder_mails',
-            'course_selection',
-        );
-
-        $selection = !empty($selection)
-            ? explode(',', $selection)
-            : [];
-
-        /*
-        |--------------------------------------------------------------------------
-        | Final list of eligible courses.
-        |--------------------------------------------------------------------------
-        */
-
+        // Resolve eligible courses.
+        $selection = get_config('local_coursereminder_mails', 'course_selection');
+        $selection = !empty($selection) ? explode(',', $selection) : [];
         $eligiblecourseids = [];
 
         foreach ($selection as $item) {
-
             $item = trim($item);
-
-            if (empty($item)) {
+            if ($item === '') {
                 continue;
             }
-
-            /*
-            |--------------------------------------------------------------------------
-            | Entire category selected.
-            |--------------------------------------------------------------------------
-            */
-
             if (strpos($item, 'category_') === 0) {
-
-                $categoryid = (int)str_replace(
-                    'category_',
-                    '',
-                    $item,
-                );
-
-                $categorycourses = $DB->get_records(
-                    'course',
-                    [
-                        'category' => $categoryid,
-                    ],
-                    '',
-                    'id',
-                );
-
-                foreach ($categorycourses as $categorycourse) {
-
-                    if ($categorycourse->id == SITEID) {
-                        continue;
+                $categoryid = (int)str_replace('category_', '', $item);
+                $categorycourses = $DB->get_records('course', ['category' => $categoryid], '', 'id');
+                foreach ($categorycourses as $cc) {
+                    if ($cc->id != SITEID) {
+                        $eligiblecourseids[] = (int)$cc->id;
                     }
-
-                    $eligiblecourseids[] =
-                        (int)$categorycourse->id;
                 }
             }
-
-            /*
-            |--------------------------------------------------------------------------
-            | Individual course selected.
-            |--------------------------------------------------------------------------
-            */
-
             if (strpos($item, 'course_') === 0) {
-
-                $courseid = (int)str_replace(
-                    'course_',
-                    '',
-                    $item
-                );
-
+                $courseid = (int)str_replace('course_', '', $item);
                 if ($courseid != SITEID) {
-
-                    $eligiblecourseids[] =
-                        $courseid;
+                    $eligiblecourseids[] = $courseid;
                 }
             }
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Remove duplicate course IDs.
-        |--------------------------------------------------------------------------
-        */
-
-        $eligiblecourseids = array_values(
-            array_unique($eligiblecourseids)
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Nothing selected = no emails.
-        |--------------------------------------------------------------------------
-        */
+        $eligiblecourseids = array_values(array_unique($eligiblecourseids));
 
         if (empty($eligiblecourseids)) {
-
-            mtrace(
-                'No courses/categories selected for reminders.'
-            );
-
-            mtrace(
-                'No reminder emails will be sent.'
-            );
-
+            mtrace(get_string('tasknocourseselected', 'local_coursereminder_mails'));
             return;
         }
 
-        mtrace(
-            'Eligible course IDs: '
-            . implode(', ', $eligiblecourseids)
-        );
+        $emailbody = get_config('local_coursereminder_mails', 'emailbody');
+        $emailsubject = get_config('local_coursereminder_mails', 'emailsubject');
 
-        /*
-        |--------------------------------------------------------------------------
-        | Email configuration.
-        |--------------------------------------------------------------------------
-        */
+        $timezone = \core_date::get_user_timezone();
+        $todaystart = usergetmidnight(time(), $timezone);
+        $todayend = $todaystart + DAYSECS - 1;
 
-        $emailbody = get_config(
-            'local_courseremainder_mails',
-            'emailbody'
-        );
+        $processeddays = [];
 
-        $emailsubject = get_config(
-            'local_courseremainder_mails',
-            'emailsubject'
-        );
+        foreach ($reminders as $type => $days) {
+            if ($days <= 0) {
+                continue;
+            }
+            if (isset($processeddays[$days])) {
+                continue;
+            }
+            $processeddays[$days] = true;
 
-        /*
-        |--------------------------------------------------------------------------
-        | Today's range for duplicate check.
-        |--------------------------------------------------------------------------
-        */
+            $targetdate = strtotime("+{$days} days");
+            $startofday = strtotime(date('Y-m-d 00:00', $targetdate));
+            $endofday = strtotime(date('Y-m-d 23:59', $targetdate));
 
-        $todaystart = strtotime(
-            date('Y-m-d 00:00:00')
-        );
+            list($courseinsql, $courseparams) = $DB->get_in_or_equal(
+                $eligiblecourseids,
+                SQL_PARAMS_NAMED,
+                'eligiblecourse'
+            );
 
-        $todayend = strtotime(
-            date('Y-m-d 23:59:59')
-        );
+            if ($reminderdatebasedon === 'courseenddate') {
+                $conditions = "visible = 1
+                               AND id <> :siteid
+                               AND id $courseinsql
+                               AND enddate >= :startday
+                               AND enddate <= :endday";
+                $params = array_merge([
+                    'siteid' => SITEID,
+                    'startday' => $startofday,
+                    'endday' => $endofday,
+                ], $courseparams);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Start transaction.
-        |--------------------------------------------------------------------------
-        */
-
-        $transaction = $DB->start_delegated_transaction();
-
-        try {
-
-            $processeddays = [];
-
-            /*
-            |--------------------------------------------------------------------------
-            | Process every reminder type.
-            |--------------------------------------------------------------------------
-            */
-
-            foreach ($reminders as $type => $days) {
-
-                if ($days <= 0) {
+                $courses = $DB->get_records_select('course', $conditions, $params);
+                if (empty($courses)) {
                     continue;
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | Prevent duplicate reminder when two settings
-                | have the same number of days.
-                |--------------------------------------------------------------------------
-                */
-
-                if (isset($processeddays[$days])) {
-
-                    mtrace(
-                        "Skipping duplicate reminder for "
-                        . "{$days} days ({$type})"
-                    );
-
-                    continue;
-                }
-
-                $processeddays[$days] = true;
-
-                mtrace(
-                    "=== Checking {$type} reminder "
-                    . "({$days} days before expiry) ==="
-                );
-
-                /*
-                |--------------------------------------------------------------------------
-                | Calculate target date.
-                |--------------------------------------------------------------------------
-                */
-
-                $targetdate = strtotime(
-                    "+{$days} days"
-                );
-
-                $startofday = strtotime(
-                    date(
-                        'Y-m-d 00:00:00',
-                        $targetdate
-                    )
-                );
-
-                $endofday = strtotime(
-                    date(
-                        'Y-m-d 23:59:59',
-                        $targetdate
-                    )
-                );
-
-                /*
-                |--------------------------------------------------------------------------
-                | Build eligible course SQL.
-                |--------------------------------------------------------------------------
-                */
-
-                list($courseinsql, $courseparams) =
-                    $DB->get_in_or_equal(
-                        $eligiblecourseids,
-                        SQL_PARAMS_NAMED,
-                        'eligiblecourse'
-                    );
-
-                /*
-                |--------------------------------------------------------------------------
-                | COURSE END DATE
-                |--------------------------------------------------------------------------
-                |
-                | When admin selected:
-                |
-                | Course End Date
-                |
-                | We first find courses whose course.enddate
-                | matches the reminder date.
-                |--------------------------------------------------------------------------
-                */
-
-                if ($reminderdatebasedon === 'courseenddate') {
-
-                    $conditions = "
-                        visible = 1
-
-                        AND id <> :siteid
-
-                        AND id $courseinsql
-
-                        AND enddate >= :startday
-
-                        AND enddate <= :endday
-                    ";
-
-                    $params = array_merge(
-
+                foreach ($courses as $course) {
+                    $users = $DB->get_records_sql(
+                        "SELECT DISTINCT u.*, ue.enrolid
+                           FROM {user} u
+                           JOIN {user_enrolments} ue ON ue.userid = u.id
+                           JOIN {enrol} e ON e.id = ue.enrolid
+                           JOIN {context} ctx ON ctx.instanceid = e.courseid
+                                             AND ctx.contextlevel = :contextlevel
+                           JOIN {role_assignments} ra ON ra.userid = u.id
+                                                     AND ra.contextid = ctx.id
+                          WHERE e.courseid = :courseid
+                            AND ra.roleid = :roleid
+                            AND ue.status = 0
+                            AND u.deleted = 0
+                            AND u.suspended = 0",
                         [
-                            'siteid' => SITEID,
-
-                            'startday' => $startofday,
-
-                            'endday' => $endofday,
-                        ],
-
-                        $courseparams,
+                            'contextlevel' => CONTEXT_COURSE,
+                            'courseid' => $course->id,
+                            'roleid' => $studentroleid,
+                        ]
                     );
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Get eligible courses.
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $courses = $DB->get_records_select(
-                        'course',
-                        $conditions,
-                        $params,
-                    );
-
-                    mtrace(
-                        'Eligible courses found: '
-                        . count($courses)
-                    );
-
-                    if (empty($courses)) {
-                        continue;
-                    }
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Process courses.
-                    |--------------------------------------------------------------------------
-                    */
-
-                    foreach ($courses as $course) {
-
-                        mtrace(
-                            "Processing Course: "
-                            . $course->fullname
-                        );
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Get enrolled students.
-                        |--------------------------------------------------------------------------
-                        */
-
-                        $users = $DB->get_records_sql(
-
-                            "SELECT DISTINCT
-                                u.*,
-                                ue.enrolid
-
-                             FROM {user} u
-
-                             JOIN {user_enrolments} ue
-                               ON ue.userid = u.id
-
-                             JOIN {enrol} e
-                               ON e.id = ue.enrolid
-
-                             JOIN {context} ctx
-                               ON ctx.instanceid = e.courseid
-
-                              AND ctx.contextlevel = :contextlevel
-
-                             JOIN {role_assignments} ra
-                               ON ra.userid = u.id
-
-                              AND ra.contextid = ctx.id
-
-                             WHERE e.courseid = :courseid
-
-                               AND ra.roleid = :roleid
-
-                               AND ue.status = 0
-
-                               AND u.deleted = 0
-
-                               AND u.suspended = 0",
-
-                            [
-
-                                'contextlevel' =>
-                                    CONTEXT_COURSE,
-
-                                'courseid' =>
-                                    $course->id,
-
-                                'roleid' =>
-                                    $studentroleid,
-
-                            ]
-                        );
-
-                        mtrace(
-                            "  Students found: "
-                            . count($users)
-                        );
-
-                        if (empty($users)) {
-                            continue;
-                        }
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Process students.
-                        |--------------------------------------------------------------------------
-                        */
-
-                        foreach ($users as $user) {
-
-                            $this->process_reminder_user(
-                                $user,
-                                $course,
-                                $days,
-                                $type,
-                                $emailsubject,
-                                $emailbody,
-                                $supportuser,
-                                $todaystart,
-                                $todayend,
-                            );
-                        }
-                    }
-                }
-
-                /*
-                |--------------------------------------------------------------------------
-                | USER ENROLMENT END DATE
-                |--------------------------------------------------------------------------
-                |
-                | When admin selected:
-                |
-                | User Enrolment End Date
-                |
-                | We find individual user enrolments whose
-                | user_enrolments.timeend matches the reminder date.
-                |
-                | This means different users can have different
-                | expiry dates for the same course.
-                |--------------------------------------------------------------------------
-                */
-
-                if ($reminderdatebasedon === 'enrolmentenddate') {
-
-                    $enrolments = $DB->get_records_sql(
-
-                        "SELECT DISTINCT
-
-                            ue.id AS userenrolmentid,
-
-                            ue.userid,
-
-                            ue.enrolid,
-
-                            ue.timeend,
-
-                            e.courseid
-
-                         FROM {user_enrolments} ue
-
-                         JOIN {enrol} e
-                           ON e.id = ue.enrolid
-
-                         JOIN {course} c
-                           ON c.id = e.courseid
-
-                         JOIN {user} u
-                           ON u.id = ue.userid
-
-                         JOIN {context} ctx
-                           ON ctx.instanceid = e.courseid
-
-                          AND ctx.contextlevel = :contextlevel
-
-                         JOIN {role_assignments} ra
-                           ON ra.userid = u.id
-
-                          AND ra.contextid = ctx.id
-
-                         WHERE ue.status = 0
-
-                           AND ue.timeend > 0
-
-                           AND ue.timeend >= :startday
-
-                           AND ue.timeend <= :endday
-
-                           AND c.visible = 1
-
-                           AND c.id <> :siteid
-
-                           AND c.id $courseinsql
-
-                           AND u.deleted = 0
-
-                           AND u.suspended = 0
-
-                           AND ra.roleid = :roleid",
-
-                        array_merge(
-
-                            [
-
-                                'contextlevel' =>
-                                    CONTEXT_COURSE,
-
-                                'startday' =>
-                                    $startofday,
-
-                                'endday' =>
-                                    $endofday,
-
-                                'siteid' =>
-                                    SITEID,
-
-                                'roleid' =>
-                                    $studentroleid,
-
-                            ],
-
-                            $courseparams
-                        )
-                    );
-
-                    mtrace(
-                        'User enrolments found: '
-                        . count($enrolments)
-                    );
-
-                    if (empty($enrolments)) {
-                        continue;
-                    }
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Process individual enrolments.
-                    |--------------------------------------------------------------------------
-                    */
-
-                    foreach ($enrolments as $enrolment) {
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Get course.
-                        |--------------------------------------------------------------------------
-                        */
-
-                        $course = $DB->get_record(
-                            'course',
-                            [
-                                'id' =>
-                                    $enrolment->courseid,
-
-                                'visible' => 1,
-                            ],
-                            '*',
-                            MUST_EXIST
-                        );
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Get user.
-                        |--------------------------------------------------------------------------
-                        */
-
-                        $user = $DB->get_record(
-                            'user',
-                            [
-                                'id' =>
-                                    $enrolment->userid,
-
-                                'deleted' => 0,
-                            ],
-                            '*',
-                            MUST_EXIST
-                        );
-
-                        mtrace(
-                            "Processing Course: "
-                            . $course->fullname
-                            . " | User: "
-                            . $user->email
-                        );
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Process reminder.
-                        |--------------------------------------------------------------------------
-                        */
-
+                    foreach ($users as $user) {
                         $this->process_reminder_user(
-                            $user,
-                            $course,
-                            $days,
-                            $type,
-                            $emailsubject,
-                            $emailbody,
-                            $supportuser,
-                            $todaystart,
-                            $todayend,
-                            $enrolment->enrolid,
+                            $user, $course, $days, $type,
+                            $emailsubject, $emailbody, $supportuser,
+                            $todaystart, $todayend
                         );
                     }
                 }
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | Commit.
-            |--------------------------------------------------------------------------
-            */
+            if ($reminderdatebasedon === 'enrolmentenddate') {
+                $enrolments = $DB->get_records_sql(
+                    "SELECT DISTINCT ue.id AS userenrolmentid,
+                            ue.userid, ue.enrolid, ue.timeend, e.courseid
+                       FROM {user_enrolments} ue
+                       JOIN {enrol} e ON e.id = ue.enrolid
+                       JOIN {course} c ON c.id = e.courseid
+                       JOIN {user} u ON u.id = ue.userid
+                       JOIN {context} ctx ON ctx.instanceid = e.courseid
+                                         AND ctx.contextlevel = :contextlevel
+                       JOIN {role_assignments} ra ON ra.userid = u.id
+                                                 AND ra.contextid = ctx.id
+                      WHERE ue.status = 0
+                        AND ue.timeend > 0
+                        AND ue.timeend >= :startday
+                        AND ue.timeend <= :endday
+                        AND c.visible = 1
+                        AND c.id <> :siteid
+                        AND c.id $courseinsql
+                        AND u.deleted = 0
+                        AND u.suspended = 0
+                        AND ra.roleid = :roleid",
+                    array_merge([
+                        'contextlevel' => CONTEXT_COURSE,
+                        'startday' => $startofday,
+                        'endday' => $endofday,
+                        'siteid' => SITEID,
+                        'roleid' => $studentroleid,
+                    ], $courseparams)
+                );
 
-            $transaction->allow_commit();
+                foreach ($enrolments as $enrolment) {
+                    $course = $DB->get_record('course', ['id' => $enrolment->courseid, 'visible' => 1], '*', MUST_EXIST);
+                    $user = $DB->get_record('user', ['id' => $enrolment->userid, 'deleted' => 0], '*', MUST_EXIST);
 
-            mtrace(
-                "=================================================="
-            );
-
-            mtrace(
-                "Course Reminder task completed successfully."
-            );
-
-            mtrace(
-                "=================================================="
-            );
-
-        } catch (\Exception $e) {
-
-            /*
-            |--------------------------------------------------------------------------
-            | Rollback.
-            |--------------------------------------------------------------------------
-            */
-
-            $transaction->rollback($e);
-
-            mtrace(
-                "=================================================="
-            );
-
-            mtrace(
-                "Course Reminder task FAILED!"
-            );
-
-            mtrace(
-                $e->getMessage()
-            );
-
-            mtrace(
-                $e->getTraceAsString()
-            );
-
-            mtrace(
-                "=================================================="
-            );
-
-            throw $e;
+                    $this->process_reminder_user(
+                        $user, $course, $days, $type,
+                        $emailsubject, $emailbody, $supportuser,
+                        $todaystart, $todayend, $enrolment->enrolid
+                    );
+                }
+            }
         }
+
+        mtrace(get_string('taskcompleted', 'local_coursereminder_mails'));
     }
 
     /**
-     * Process and send reminder to a user.
-     *
-     * @param object $user
-     * @param object $course
-     * @param int $days
-     * @param string $type
-     * @param string $emailsubject
-     * @param string $emailbody
-     * @param object $supportuser
-     * @param int $todaystart
-     * @param int $todayend
-     * @param int|null $enrolid
+     * Send a reminder for one user and log it.
      */
     private function process_reminder_user(
-        $user,
-        $course,
-        $days,
-        $type,
-        $emailsubject,
-        $emailbody,
-        $supportuser,
-        $todaystart,
-        $todayend,
-        $enrolid = null,
+        $user, $course, $days, $type,
+        $emailsubject, $emailbody, $supportuser,
+        $todaystart, $todayend, $enrolid = null
     ) {
-
         global $DB;
 
-        /*
-        |--------------------------------------------------------------------------
-        | Prevent duplicate reminder on the same day.
-        |--------------------------------------------------------------------------
-        */
-
         $alreadysent = $DB->record_exists_sql(
-
             "SELECT 1
-
-               FROM {local_courseremainder_mails_log}
-
-              WHERE userid = :userid
-
+            FROM {local_coursereminder_mails_log}
+            WHERE userid = :userid
                 AND courseid = :courseid
-
+                AND day = :days
+                AND expairy_notification_type = :type
                 AND status = 1
-
+                AND deleted = 0
                 AND timesent BETWEEN :start AND :end",
-
             [
-
-                'userid' =>
-                    $user->id,
-
-                'courseid' =>
-                    $course->id,
-
-                'start' =>
-                    $todaystart,
-
-                'end' =>
-                    $todayend,
+                'userid' => $user->id,
+                'courseid' => $course->id,
+                'days' => $days,
+                'type' => $type,
+                'start' => $todaystart,
+                'end' => $todayend,
             ]
         );
 
         if ($alreadysent) {
-
-            mtrace(
-                "  Skipping "
-                . "{$user->email}"
-                . " - already received reminder today"
-            );
-
+            mtrace(get_string('taskskipalready', 'local_coursereminder_mails', ['email' => $user->email]));
             return;
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Check course completion.
-        |--------------------------------------------------------------------------
-        */
-
-        $progress =
-            \core_completion\progress::get_course_progress_percentage(
-                $course,
-                $user->id,
-            );
-
-        if (
-            $progress !== null
-            && $progress >= 100
-        ) {
-
-            mtrace(
-                "  Skipping "
-                . "{$user->email}"
-                . " - course completed"
-            );
-
+        $progress = \core_completion\progress::get_course_progress_percentage($course, $user->id);
+        if ($progress !== null && $progress >= 100) {
+            mtrace(get_string('taskskipcompleted', 'local_coursereminder_mails', ['email' => $user->email]));
             return;
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Prepare email.
-        |--------------------------------------------------------------------------
-        */
 
         $subject = $emailsubject;
-
         $message = str_replace(
-
-            [
-                '{fullname}',
-                '{course}',
-                '{days}',
-            ],
-
-            [
-                fullname($user),
-                $course->fullname,
-                $days,
-            ],
-
+            ['{fullname}', '{course}', '{days}'],
+            [fullname($user), $course->fullname, $days],
             $emailbody
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | Send email.
-        |--------------------------------------------------------------------------
-        */
-
-        $sent = email_to_user(
-
-            $user,
-
-            $supportuser,
-
-            $subject,
-
-            $message,
-
-            text_to_html($message)
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Log email.
-        |--------------------------------------------------------------------------
-        */
-
-        $now = time();
-
-        /*
-        | If enrolid wasn't supplied, try to get
-        | the user's active enrolment for this course.
-        */
+        // Send email OUTSIDE any transaction.
+        $sent = email_to_user($user, $supportuser, $subject, $message, text_to_html($message));
 
         if (empty($enrolid)) {
-
             $enrolid = $DB->get_field_sql(
-
                 "SELECT ue.enrolid
-
                    FROM {user_enrolments} ue
-
-                   JOIN {enrol} e
-                     ON e.id = ue.enrolid
-
+                   JOIN {enrol} e ON e.id = ue.enrolid
                   WHERE ue.userid = :userid
-
                     AND e.courseid = :courseid
-
                     AND ue.status = 0
-
-                  ORDER BY ue.id ASC",
-
-                [
-
-                    'userid' =>
-                        $user->id,
-
-                    'courseid' =>
-                        $course->id,
-                ]
+               ORDER BY ue.id ASC",
+                ['userid' => $user->id, 'courseid' => $course->id]
             );
         }
 
+        $now = time();
         $log = (object)[
-
-            'userid' =>
-                $user->id,
-
-            'email' =>
-                $user->email,
-
-            'courseid' =>
-                $course->id,
-
-            'enrol_id' =>
-                $enrolid,
-
-            'status' =>
-                $sent ? 1 : 0,
-
-            'day' =>
-                $days,
-
-            'expairy_notification_type' =>
-                $type,
-
-            'deleted' =>
-                0,
-
-            'modifierid' =>
-                $supportuser->id,
-
-            'timesent' =>
-                $now,
-
-            'timecreated' =>
-                $now,
-
-            'timemodified' =>
-                $now,
+            'userid' => $user->id,
+            'email' => $user->email,
+            'courseid' => $course->id,
+            'enrol_id' => $enrolid ?: 0,
+            'status' => $sent ? 1 : 0,
+            'day' => $days,
+            'expairy_notification_type' => $type,
+            'deleted' => 0,
+            'modifierid' => $supportuser->id,
+            'timesent' => $now,
+            'timecreated' => $now,
+            'timemodified' => $now,
         ];
+        $DB->insert_record('local_coursereminder_mails_log', $log);
 
-        $DB->insert_record(
-            'local_courseremainder_mails_log',
-            $log,
-        );
-
-        mtrace(
-
-            "  "
-            . ($sent
-                ? "Sent"
-                : "Failed")
-
-            . " to: "
-
-            . $user->email
-
-            . " ({$type} - "
-            . "{$days} days)"
-
+        $a = (object)['email' => $user->email, 'type' => $type, 'days' => $days];
+        mtrace($sent
+            ? get_string('tasksent', 'local_coursereminder_mails', $a)
+            : get_string('taskfailed', 'local_coursereminder_mails', $a)
         );
     }
 }
-

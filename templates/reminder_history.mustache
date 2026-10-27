@@ -1,0 +1,19 @@
+{{#hasrecords}}
+<table class="reminder-detail-table">
+  <thead><tr><th>Type</th><th>Days</th><th>Status</th><th>Sent time</th></tr></thead>
+  <tbody>
+  {{#records}}
+    <tr>
+      <td>{{type}}</td>
+      <td>{{day}}</td>
+      <td>{{#sent}}<span class="reminder-status-success">{{#str}}success, local_coursereminder_mails{{/str}}</span>{{/sent}}
+          {{^sent}}<span class="reminder-status-failed">{{#str}}failed, local_coursereminder_mails{{/str}}</span>{{/sent}}</td>
+      <td>{{timesent}}</td>
+    </tr>
+  {{/records}}
+  </tbody>
+</table>
+{{/hasrecords}}
+{{^hasrecords}}
+<p>{{#str}}noreminderhistory, local_coursereminder_mails{{/str}}</p>
+{{/hasrecords}}

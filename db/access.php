@@ -15,9 +15,9 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Library functions for courseremainder mails
+ * Capability definitions.
  *
- * @package    local_courseremainder_mails
+ * @package    local_coursereminder_mails
  * @copyright  2026 IEX
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -25,24 +25,16 @@
 defined('MOODLE_INTERNAL') || die();
 
 $capabilities = [
-
-    'local/courseremainder_mails:view' => [
-        'riskbitmask' => RISK_PERSONAL,
-        'captype' => 'read',
+    'local/coursereminder_mails:view' => [
+        'riskbitmask'  => RISK_PERSONAL,
+        'captype'      => 'read',
         'contextlevel' => CONTEXT_SYSTEM,
-        'archetypes' => [
-            'manager' => CAP_ALLOW,
-        ],
+        'archetypes'   => ['manager' => CAP_ALLOW],
     ],
-
-    'local/courseremainder_mails:manage' => [
-        'riskbitmask' => RISK_CONFIG,
-        'captype' => 'write',
+    'local/coursereminder_mails:manage' => [
+        'riskbitmask'  => RISK_CONFIG,
+        'captype'      => 'write',
         'contextlevel' => CONTEXT_SYSTEM,
-        'archetypes' => [
-            'manager' => CAP_ALLOW,
-        ],
+        'archetypes'   => ['manager' => CAP_ALLOW],
     ],
-
 ];
-

@@ -15,14 +15,14 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Library functions for courseremainder mails
+ * Library functions for coursereminder mails
  *
- * @package    local_courseremainder_mails
+ * @package    local_coursereminder_mails
  * @copyright  2026 IEX
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-namespace local_courseremainder_mails\form;
+namespace local_coursereminder_mails\form;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -31,7 +31,7 @@ require_once($CFG->libdir . '/formslib.php');
 /**
  * Form for filtering course reminder reports.
  *
- * @package local_courseremainder_mails
+ * @package local_coursereminder_mails
  * @copyright 2026 Your Organization
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -49,7 +49,7 @@ class report_filter extends \moodleform {
 
         // Course.
         $courses = [
-            0 => get_string('select_course', 'local_courseremainder_mails'),
+            0 => get_string('select_course', 'local_coursereminder_mails'),
         ];
 
         $courserecords = $DB->get_records(
@@ -78,7 +78,7 @@ class report_filter extends \moodleform {
 
         // User.
         $users = [
-            0 => get_string('select_user', 'local_courseremainder_mails'),
+            0 => get_string('select_user', 'local_coursereminder_mails'),
         ];
 
         $studentroleid = $DB->get_field(
@@ -125,7 +125,7 @@ class report_filter extends \moodleform {
 
         // Status.
         $status = [
-            '' => get_string('select_status', 'local_courseremainder_mails'),
+            '' => get_string('select_status', 'local_coursereminder_mails'),
             1 => 'Success',
             0 => 'Failed',
         ];
@@ -133,7 +133,7 @@ class report_filter extends \moodleform {
         $mform->addElement(
             'select',
             'status',
-            get_string('status', 'local_courseremainder_mails'),
+            get_string('status', 'local_coursereminder_mails'),
             $status
         );
 
@@ -143,7 +143,7 @@ class report_filter extends \moodleform {
         $mform->addElement(
             'date_selector',
             'fromdate',
-            get_string('from', 'local_courseremainder_mails'),
+            get_string('from', 'local_coursereminder_mails'),
             ['optional' => true]
         );
 
@@ -154,7 +154,7 @@ class report_filter extends \moodleform {
         $mform->addElement(
             'date_selector',
             'todate',
-            get_string('to', 'local_courseremainder_mails'),
+            get_string('to', 'local_coursereminder_mails'),
             ['optional' => true]
         );
 
@@ -164,15 +164,14 @@ class report_filter extends \moodleform {
         // Buttons.
         $this->add_action_buttons(
             false,
-            get_string('applyfilter', 'local_courseremainder_mails')
+            get_string('applyfilter', 'local_coursereminder_mails')
         );
 
         $mform->addElement(
             'cancel',
             'reset',
-            get_string('clearfilter', 'local_courseremainder_mails'),
+            get_string('clearfilter', 'local_coursereminder_mails'),
             ['class' => 'crmbtn']
         );
     }
 }
-

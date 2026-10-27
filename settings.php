@@ -15,9 +15,9 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Library functions for courseremainder mails
+ * Plugin settings.
  *
- * @package    local_courseremainder_mails
+ * @package    local_coursereminder_mails
  * @copyright  2026 IEX
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -26,182 +26,134 @@ defined('MOODLE_INTERNAL') || die();
 
 if ($hassiteconfig) {
     $settings = new admin_settingpage(
-        'local_courseremainder_mails',
-        get_string('pluginname', 'local_courseremainder_mails')
+        'local_coursereminder_mails',
+        get_string('pluginname', 'local_coursereminder_mails')
     );
 
     $ADMIN->add('localplugins', $settings);
 
     // Enable plugin.
     $settings->add(new admin_setting_configcheckbox(
-        'local_courseremainder_mails/enabled',
-        get_string('enabled', 'local_courseremainder_mails'),
-        '',
+        'local_coursereminder_mails/enabled',
+        get_string('enabled', 'local_coursereminder_mails'),
+        get_string('enabled_desc', 'local_coursereminder_mails'),
         1
     ));
 
-    // First reminder.
+    // Reminder days.
     $settings->add(new admin_setting_configtext(
-        'local_courseremainder_mails/firstremainderdays',
-        get_string('firstremainderdays', 'local_courseremainder_mails'),
+        'local_coursereminder_mails/firstreminderdays',
+        get_string('firstreminderdays', 'local_coursereminder_mails'),
         '',
         30,
         PARAM_INT
     ));
 
-    // Second reminder.
     $settings->add(new admin_setting_configtext(
-        'local_courseremainder_mails/secondremainderdays',
-        get_string('secondremainderdays', 'local_courseremainder_mails'),
+        'local_coursereminder_mails/secondreminderdays',
+        get_string('secondreminderdays', 'local_coursereminder_mails'),
         '',
         15,
         PARAM_INT
     ));
 
-    // Custom reminder.
     $settings->add(new admin_setting_configtext(
-        'local_courseremainder_mails/customremainderdays',
-        get_string('customremainderdays', 'local_courseremainder_mails'),
+        'local_coursereminder_mails/customreminderdays',
+        get_string('customreminderdays', 'local_coursereminder_mails'),
         '',
         7,
         PARAM_INT
     ));
 
-    // Reminder date based on.
+    // Reminder date source.
     $settings->add(new admin_setting_configselect(
-        'local_courseremainder_mails/reminderdatebasedon',
-        get_string(
-            'reminderdatebasedon',
-            'local_courseremainder_mails'
-        ),
-        get_string(
-            'reminderdatebasedon_desc',
-            'local_courseremainder_mails'
-        ),
+        'local_coursereminder_mails/reminderdatebasedon',
+        get_string('reminderdatebasedon', 'local_coursereminder_mails'),
+        get_string('reminderdatebasedon_desc', 'local_coursereminder_mails'),
         'courseenddate',
         [
-            'courseenddate' => get_string(
-                'courseenddate',
-                'local_courseremainder_mails'
-            ),
-            'enrolmentenddate' => get_string(
-                'enrolmentenddate',
-                'local_courseremainder_mails'
-            ),
+            'courseenddate'    => get_string('courseenddate', 'local_coursereminder_mails'),
+            'enrolmentenddate' => get_string('enrolmentenddate', 'local_coursereminder_mails'),
         ]
     ));
 
     // Email subject.
     $settings->add(new admin_setting_configtext(
-        'local_courseremainder_mails/emailsubject',
-        get_string('emailsubject', 'local_courseremainder_mails'),
+        'local_coursereminder_mails/emailsubject',
+        get_string('emailsubject', 'local_coursereminder_mails'),
         '',
-        'Course Expiry Reminder',
+        get_string('defaultemailsubject', 'local_coursereminder_mails'),
         PARAM_TEXT
     ));
 
     // Email body.
     $settings->add(new admin_setting_configtextarea(
-        'local_courseremainder_mails/emailbody',
-        get_string('emailbody', 'local_courseremainder_mails'),
+        'local_coursereminder_mails/emailbody',
+        get_string('emailbody', 'local_coursereminder_mails'),
         '',
-        "Hello {fullname},\n\n"
-        . "Your course {course} will end in {days} days.\n\n"
-        . "Please complete your remaining activities before the course end date.\n\n"
-        . "Thank you,\n\n"
-        . "Regards,\n"
-        . "Administrator"
+        get_string('defaultemailbody', 'local_coursereminder_mails')
     ));
 
-    // Course and category selection.
-    // One setting controls both categories and individual courses.
+    // Course/category selection.
     global $DB;
 
-    // Get all categories.
-    $categories = $DB->get_records(
-        'course_categories',
-        null,
-        'sortorder ASC',
-        'id,name'
+    // Only load categories that contain at least one course.
+    $categories = $DB->get_records_sql(
+        "SELECT DISTINCT cc.id, cc.name
+           FROM {course_categories} cc
+           JOIN {course} c ON c.category = cc.id
+          WHERE c.id <> :siteid
+       ORDER BY cc.sortorder ASC",
+        ['siteid' => SITEID]
     );
 
-    // Get all courses.
-    $courses = $DB->get_records(
-        'course',
-        null,
-        'fullname ASC',
-        'id,fullname,category'
-    );
-
-    // Group courses by category.
-    $coursesbycategory = [];
-
-    foreach ($courses as $course) {
-        // Do not include the site course.
-        if ($course->id == SITEID) {
-            continue;
-        }
-
-        if (!isset($coursesbycategory[$course->category])) {
-            $coursesbycategory[$course->category] = [];
-        }
-
-        $coursesbycategory[$course->category][$course->id] = $course->fullname;
-    }
-
-    // Build grouped options.
-    // Category_10 means the entire category.
-    // Course_25 means an individual course.
     $courseoptions = [];
-
     foreach ($categories as $category) {
-        if (empty($coursesbycategory[$category->id])) {
-            continue;
-        }
+        $courses = $DB->get_records(
+            'course',
+            ['category' => $category->id],
+            'fullname ASC',
+            'id, fullname'
+        );
 
         $categoryoptions = [];
+        $categoryoptions['category_' . $category->id] = get_string(
+            'allcoursesincategory',
+            'local_coursereminder_mails',
+            $category->name
+        );
 
-        // Category itself.
-        // Selecting this includes all courses directly inside this category.
-        $categoryoptions['category_' . $category->id] =
-            'All courses in ' . $category->name;
-
-        // Individual courses.
-        foreach ($coursesbycategory[$category->id] as $courseid => $fullname) {
-            $categoryoptions['course_' . $courseid] = $fullname;
+        foreach ($courses as $course) {
+            if ($course->id == SITEID) {
+                continue;
+            }
+            $categoryoptions['course_' . $course->id] = format_string($course->fullname);
         }
 
-        // Create optgroup.
-        $courseoptions[$category->name] = $categoryoptions;
+        if (count($categoryoptions) > 1) {
+            $courseoptions[$category->name] = $categoryoptions;
+        }
     }
 
-    // Single setting for both categories and courses.
     $settings->add(new admin_setting_configmultiselect(
-        'local_courseremainder_mails/course_selection',
-        'Courses / Categories for Reminders',
-        'Select an entire category to include all courses in that category, '
-            . 'or select individual courses. Only selected courses will be '
-            . 'eligible for expiry reminder emails.',
+        'local_coursereminder_mails/course_selection',
+        get_string('courseselection', 'local_coursereminder_mails'),
+        get_string('courseselection_desc', 'local_coursereminder_mails'),
         [],
         $courseoptions
     ));
 
-    // View reminder reports.
+    // Reports link.
     $settings->add(new admin_setting_heading(
-        'local_courseremainder_mails/reports',
-        'Reminder Reports',
+        'local_coursereminder_mails/reports',
+        get_string('reminderreports', 'local_coursereminder_mails'),
         html_writer::div(
             html_writer::link(
-                new moodle_url(
-                    '/local/courseremainder_mails/index.php'
-                ),
-                'View Reminder Reports',
-                [
-                    'class' => 'btn btn-primary',
-                ]
+                new moodle_url('/local/coursereminder_mails/index.php'),
+                get_string('viewreminderreports', 'local_coursereminder_mails'),
+                ['class' => 'btn btn-primary']
             ),
             'mt-2'
         )
     ));
 }
-
