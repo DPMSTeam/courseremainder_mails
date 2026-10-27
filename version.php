@@ -24,8 +24,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'local_courseremainder_mails';
-$plugin->version   = 2026070704;
+$plugin->component = 'local_coursereminder_mails';
+$plugin->version   = 2026070703;
 $plugin->requires  = 2023100900; // Moodle 4.3.
 $plugin->maturity  = MATURITY_STABLE;
 $plugin->release   = '1.0';
